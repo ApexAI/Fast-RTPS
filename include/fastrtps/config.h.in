@@ -68,4 +68,8 @@
 #define HAVE_SECURITY @HAVE_SECURITY@
 #endif
 
+#ifndef HAVE_ENCRYPTION
+#define HAVE_ENCRYPTION @HAVE_ENCRYPTION@
+#endif
+
 #endif // _FASTRTPS_CONFIG_H_
