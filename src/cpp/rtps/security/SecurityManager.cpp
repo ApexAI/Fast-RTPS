@@ -37,6 +37,7 @@
 #include <cassert>
 #include <thread>
 #include <mutex>
+#include <chrono>
 
 #define BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_READER (1 << 22)
 #define BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_WRITER (1 << 23)
@@ -1524,13 +1525,13 @@ ParticipantCryptoHandle* SecurityManager::register_and_match_crypto_endpoint(Par
                                                                                       *local_participant_crypto_handle_, *remote_participant_crypto, exception))
         {
             ParticipantGenericMessage message = generate_participant_crypto_token_message(participant_data->m_guid,
-                                                                                          local_participant_crypto_tokens);
+              local_participant_crypto_tokens);
 
             CacheChange_t* change = participant_volatile_message_secure_writer_->new_change([&message]() -> uint32_t
-                                                                                            {
-                                                                                                return static_cast<uint32_t>(ParticipantGenericMessageHelper::serialized_size(message)
-                                                                                                                             + 4 /*encapsulation*/);
-                                                                                            }
+            {
+                return static_cast<uint32_t>(ParticipantGenericMessageHelper::serialized_size(message)
+                                             + 4 /*encapsulation*/);
+            }
                     , ALIVE, c_InstanceHandle_Unknown);
 
             if(change != nullptr)
@@ -1631,17 +1632,28 @@ bool SecurityManager::encode_rtps_message(CDRMessage_t& message,
     std::vector<uint8_t> encode_cdr_message;
 
     SecurityException exception;
+
+#if HAVE_MEASURE_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
 #if !HAVE_ENCRYPTION
     encode_cdr_message = cdr_message;
     //memcpy(static_cast<void *>(&encode_cdr_message), static_cast<void *>(&cdr_message), sizeof(CDRMessage_t));
     bool ret = true;
-#else
+#else  // HAVE_ENCRYPTION
     bool ret = crypto_plugin_->cryptotransform()->encode_rtps_message(encode_cdr_message,
             cdr_message,
             *local_participant_crypto_handle_,
             receiving_crypto_list,
             exception);
-#endif
+#endif  // HAVE_ENCRYPTION
+
+#if HAVE_MEASURE_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nEncode RTPS Message Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
     mutex_.unlock();
 
     if(encode_cdr_message.size() <= message.max_size)
@@ -1695,17 +1707,27 @@ int SecurityManager::decode_rtps_message(CDRMessage_t& message, CDRMessage_t& ou
         std::vector<uint8_t> cdr_message;
 
         SecurityException exception;
+
+#if HAVE_MEASURE_TIME
+        auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
 #if !HAVE_ENCRYPTION
         cdr_message = encode_cdr_message;
         //memcpy(static_cast<void *>(&cdr_message), static_cast<void *>(&encode_cdr_message), sizeof(CDRMessage_t));
         bool ret = true;
-#else
+#else  // HAVE_ENCRYPTION
         bool ret = crypto_plugin_->cryptotransform()->decode_rtps_message(cdr_message,
                 encode_cdr_message,
                 *local_participant_crypto_handle_,
                 *remote_participant_crypto_handle,
                 exception);
-#endif
+#endif  // HAVE_ENCRYPTION
+
+#if HAVE_MEASURE_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+        fprintf(stdout, "\nDecode RTPS Message Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
 
         if(ret)
         {
@@ -2261,18 +2283,28 @@ bool SecurityManager::encode_writer_submessage(CDRMessage_t& message, const GUID
             std::vector<uint8_t> encode_cdr_message;
             SecurityException exception;
 
+#if HAVE_MEASURE_TIME
+            auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
 #if !HAVE_ENCRYPTION
             encode_cdr_message = cdr_message;
             //memcpy(static_cast<void *>(&encode_cdr_message), static_cast<void *>(&cdr_message), sizeof(CDRMessage_t));
             if(true)
-#else
+#else  // HAVE_ENCRYPTION
                 if(crypto_plugin_->cryptotransform()->encode_datawriter_submessage(encode_cdr_message,
                         cdr_message,
                         *wr_it->second.writer_handle,
                         receiving_datareader_crypto_list,
                         exception))
-#endif
+#endif  // HAVE_ENCRYPTION
             {
+
+#if HAVE_MEASURE_TIME
+                auto end_time = std::chrono::high_resolution_clock::now();
+                fprintf(stdout, "\nEncode Writer SubMessage Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
                 if(encode_cdr_message.size() <= message.max_size)
                 {
                     memcpy(message.buffer + message.pos, encode_cdr_message.data(), encode_cdr_message.size());
@@ -2327,18 +2359,27 @@ bool SecurityManager::encode_reader_submessage(CDRMessage_t& message, const GUID
             std::vector<uint8_t> encode_cdr_message;
             SecurityException exception;
 
+#if HAVE_MEASURE_TIME
+            auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
 #if !HAVE_ENCRYPTION
             encode_cdr_message = cdr_message;
             //memcpy(static_cast<void *>(&encode_cdr_message), static_cast<void *>(&cdr_message), sizeof(CDRMessage_t));
             if (true)
-#else
+#else  // HAVE_ENCRYPTION
                 if(crypto_plugin_->cryptotransform()->encode_datareader_submessage(encode_cdr_message,
                         cdr_message,
                         *rd_it->second.reader_handle,
                         receiving_datawriter_crypto_list,
                         exception))
-#endif
+#endif  // HAVE_ENCRYPTION
             {
+#if HAVE_MEASURE_TIME
+                auto end_time = std::chrono::high_resolution_clock::now();
+                fprintf(stdout, "\nEncode Reader SubMessage Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
                 if(encode_cdr_message.size() <= message.max_size)
                 {
                     memcpy(message.buffer + message.pos, encode_cdr_message.data(), encode_cdr_message.size());
@@ -2401,35 +2442,74 @@ int SecurityManager::decode_rtps_submessage(CDRMessage_t& message, CDRMessage_t&
             // TODO (Ricardo) Category INFO
             if(category == DATAWRITER_SUBMESSAGE)
             {
+#if HAVE_MEASURE_TIME
+                auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
 #if !HAVE_ENCRYPTION
                 memcpy(static_cast<void *>(&out_message), static_cast<void *>(&message), sizeof(CDRMessage_t));
-#else
+
+#if HAVE_MEASURE_TIME
+                auto end_time = std::chrono::high_resolution_clock::now();
+                fprintf(stdout, "\nEncode RTPS Message Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#else  // HAVE_ENCRYPTION
                 if(crypto_plugin_->cryptotransform()->decode_datawriter_submessage(out_message, message,
                             *reader_handle, *writer_handle, exception))
                 {
+#if HAVE_MEASURE_TIME
+                    auto end_time = std::chrono::high_resolution_clock::now();
+                    fprintf(stdout, "\nDecode RTPS DW-SubMessage Time Fail %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
                     return 0;
                 }
                 else
                 {
                     logError(SECURITY, "Cannot decode writer RTPS submessage (" << exception.what() << ")");
                 }
-#endif
+
+#if HAVE_MEASURE_TIME
+                auto end_time = std::chrono::high_resolution_clock::now();
+                fprintf(stdout, "\nDecode RTPS DW-SubMessage Time Pass %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+#endif  // HAVE_ENCRYPTION
             }
             else if(category == DATAREADER_SUBMESSAGE)
             {
+#if HAVE_MEASURE_TIME
+                auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
 #if !HAVE_ENCRYPTION
                 memcpy(static_cast<void *>(&out_message), static_cast<void *>(&message), sizeof(CDRMessage_t));
-#else
+
+#if HAVE_MEASURE_TIME
+                auto end_time = std::chrono::high_resolution_clock::now();
+                fprintf(stdout, "\nEncode RTPS Message Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#else  // HAVE_ENCRYPTION
                 if(crypto_plugin_->cryptotransform()->decode_datareader_submessage(out_message, message,
                             *writer_handle, *reader_handle, exception))
                 {
+#if HAVE_MEASURE_TIME
+                    auto end_time = std::chrono::high_resolution_clock::now();
+                    fprintf(stdout, "\nDecode RTPS DR-SubMessage Time Fail %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
                     return 0;
                 }
                 else
                 {
                     logError(SECURITY, "Cannot decode reader RTPS submessage (" << exception.what() << ")");
                 }
-#endif
+
+#if HAVE_MEASURE_TIME
+                auto end_time = std::chrono::high_resolution_clock::now();
+                fprintf(stdout, "\nDecode RTPS DR-SubMessage Time Pass %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+#endif  // HAVE_ENCRYPTION
             }
         }
         else
@@ -2460,18 +2540,28 @@ bool SecurityManager::encode_serialized_payload(const SerializedPayload_t& paylo
         std::vector<uint8_t> cdr_message(payload.data, payload.data + payload.length);
         std::vector<uint8_t> encode_cdr_message, extra_inline_qos;
         SecurityException exception;
+
+#if HAVE_MEASURE_TIME
+        auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
 #if !HAVE_ENCRYPTION
         encode_cdr_message = cdr_message;
         //memcpy(static_cast<void *>(&encode_cdr_message), static_cast<void *>(&cdr_message), cdr_message.size());
         if (true)
-#else
+#else  // HAVE_ENCRYPTION
             if(crypto_plugin_->cryptotransform()->encode_serialized_payload(encode_cdr_message,
                     extra_inline_qos,
                     cdr_message,
                     *wr_it->second.writer_handle,
                     exception))
-#endif
+#endif  // HAVE_ENCRYPTION
         {
+#if HAVE_MEASURE_TIME
+            auto end_time = std::chrono::high_resolution_clock::now();
+            fprintf(stdout, "\nEncode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
             if(encode_cdr_message.size() <= output_message.max_size) // TODO(Ricardo) Look if max_size can be 0.
             {
                 memcpy(output_message.buffer, encode_cdr_message.data(), encode_cdr_message.size());
@@ -2512,15 +2602,24 @@ bool SecurityManager::decode_serialized_payload(const SerializedPayload_t& secur
             std::vector<uint8_t> decode_payload, inline_qos;
             SecurityException exception;
 
+#if HAVE_MEASURE_TIME
+            auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
 #if !HAVE_ENCRYPTION
             decode_payload = encode_payload;
             //memcpy(static_cast<void *>(&decode_payload), static_cast<void *>(&encode_payload), encode_payload.size());
             if (true)
-#else
+#else  // HAVE_ENCRYPTION
                 if(crypto_plugin_->cryptotransform()->decode_serialized_payload(decode_payload,
                         encode_payload, inline_qos, *rd_it->second.reader_handle, *wr_it_handle->second, exception))
-#endif
+#endif  // HAVE_ENCRYPTION
             {
+#if HAVE_MEASURE_TIME
+                auto end_time = std::chrono::high_resolution_clock::now();
+                fprintf(stdout, "\nDecode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
                 if(decode_payload.size() <= payload.max_size) // TODO(Ricardo) Look if max_size can be 0.
                 {
                     memcpy(payload.data, decode_payload.data(), decode_payload.size());

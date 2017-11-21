@@ -435,3 +435,6 @@ target/
 
 # Clion
 .idea
+
+# Debug Build
+cmake-build-debug/
