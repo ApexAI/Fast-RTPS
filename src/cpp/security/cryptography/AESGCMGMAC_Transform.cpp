@@ -45,11 +45,24 @@ bool AESGCMGMAC_Transform::encode_serialized_payload(
         DatawriterCryptoHandle &sending_datawriter_crypto,
         SecurityException& /*exception*/)
 {
+#if HAVE_MEASURE_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
     AESGCMGMAC_WriterCryptoHandle& local_writer = AESGCMGMAC_WriterCryptoHandle::narrow(sending_datawriter_crypto);
     if(local_writer.nil()){
         logWarning(SECURITY_CRYPTO,"Invalid CryptoHandle");
         return false;
     }
+
+#if HAVE_MEASURE_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nCreation of AESGCMCMAC WriterCryptoHandle Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
 
     // Precondition to use openssl
     if(plain_buffer.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
@@ -58,7 +71,25 @@ bool AESGCMGMAC_Transform::encode_serialized_payload(
         return false;
     }
 
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nPrecondition for openssl Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
     std::unique_lock<std::mutex> lock(local_writer->mutex_);
+
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nTime to obtain lock Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
 
     //If the maximum number of blocks have been processed, generate a new SessionKey
     if(local_writer->session_block_counter >= local_writer->max_blocks_per_session){
@@ -73,6 +104,15 @@ bool AESGCMGMAC_Transform::encode_serialized_payload(
     }
     //In any case, increment session block counter
     local_writer->session_block_counter += 1;
+
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nPossible Generation of SessionKey Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
 
     //Build NONCE elements (Build once, use once)
     uint64_t initialization_vector_suffix;  //iv suffix changes with every operation
@@ -95,6 +135,15 @@ bool AESGCMGMAC_Transform::encode_serialized_payload(
     output.resize(enc_length,0);
 
     unsigned char tag[AES_BLOCK_SIZE]; //Container for the Authentication Tag (will become common mac)
+
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nSetup of NOUNCE HEADERS BUFFERS Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
 
     int actual_size=0, final_size=0;
     EVP_CIPHER_CTX* e_ctx = EVP_CIPHER_CTX_new();
@@ -126,17 +175,53 @@ bool AESGCMGMAC_Transform::encode_serialized_payload(
     output.resize(actual_size+final_size);
     EVP_CIPHER_CTX_free(e_ctx);
 
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nActual Encrypt Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
     //Copy the results into SecureDataBody
     SecureDataBody body;
     body.secure_data.resize(output.size());
     memcpy(body.secure_data.data(),output.data(),output.size());
 
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nMove Output Data to Secure Data MEMCPY Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
     //Build Secure DataTag
     SecureDataTag dataTag;
     memcpy(dataTag.common_mac.data(),tag, 16);
 
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nMEMCPY of tag to DataTag Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
     //Assemble the message
     encoded_buffer.clear();
+
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nClear encoded buffer Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
 
     //Header
     std::vector<uint8_t> serialized_header = serialize_SecureDataHeader(header);
@@ -145,7 +230,22 @@ bool AESGCMGMAC_Transform::encode_serialized_payload(
     //Tag
     std::vector<uint8_t> serialized_tag = serialize_SecureDataTag(dataTag);
     unsigned char flags = 0x00;
+
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nVector Initialization Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
+#if HAVE_MEASURE_TIME
+    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
     encoded_buffer = assemble_serialized_payload(serialized_header, serialized_body, serialized_tag, flags);
+
+#if HAVE_MEASURE_TIME
+    end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nAssemble Serialized Payload Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
 
     return true;
 }
@@ -1415,6 +1515,10 @@ bool AESGCMGMAC_Transform::decode_serialized_payload(
     plain_buffer.clear();
     plain_buffer.resize(encoded_buffer.size());
 
+#if HAVE_MEASURE_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
     if(sending_writer->transformation_kind == std::array<uint8_t,4>{CRYPTO_TRANSFORMATION_KIND_AES128_GCM}){
         if(!EVP_DecryptInit(d_ctx, EVP_aes_128_gcm(), (const unsigned char *)session_key.data(), initialization_vector.data()))
         {
@@ -1443,6 +1547,11 @@ bool AESGCMGMAC_Transform::decode_serialized_payload(
     EVP_CIPHER_CTX_free(d_ctx);
     plain_buffer.resize(actual_size + final_size);
     //TODO(Ricardo) Check better openssl functions
+
+#if HAVE_MEASURE_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nActual Decrypt for Decode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
 
     return true;
 }

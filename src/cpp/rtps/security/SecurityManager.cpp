@@ -2564,8 +2564,18 @@ bool SecurityManager::encode_serialized_payload(const SerializedPayload_t& paylo
 
             if(encode_cdr_message.size() <= output_message.max_size) // TODO(Ricardo) Look if max_size can be 0.
             {
+#if HAVE_MEASURE_TIME
+                start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
                 memcpy(output_message.buffer, encode_cdr_message.data(), encode_cdr_message.size());
                 output_message.length = static_cast<uint32_t>(encode_cdr_message.size());
+
+#if HAVE_MEASURE_TIME
+                end_time = std::chrono::high_resolution_clock::now();
+                fprintf(stdout, "\nMemcpy in Encode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
                 return true;
             }
             else
@@ -2622,9 +2632,19 @@ bool SecurityManager::decode_serialized_payload(const SerializedPayload_t& secur
 
                 if(decode_payload.size() <= payload.max_size) // TODO(Ricardo) Look if max_size can be 0.
                 {
+#if HAVE_MEASURE_TIME
+                    start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_TIME
+
                     memcpy(payload.data, decode_payload.data(), decode_payload.size());
                     payload.length = static_cast<uint32_t>(decode_payload.size());
                     payload.encapsulation = secure_payload.encapsulation;
+
+#if HAVE_MEASURE_TIME
+                    end_time = std::chrono::high_resolution_clock::now();
+                    fprintf(stdout, "\nMemcpy in Decode Serialized Payload Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_TIME
+
                     return true;
                 }
                 else
