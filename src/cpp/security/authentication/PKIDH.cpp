@@ -45,7 +45,6 @@ size_t BN_serialized_size(const BIGNUM* bn, size_t current_alignment = 0)
     size_t initial_alignment = current_alignment;
 
     current_alignment += 4 + alignment(current_alignment, 4) + BN_num_bytes(bn);
-
     return current_alignment - initial_alignment;
 }
 
@@ -262,6 +261,10 @@ X509* load_certificate(const std::string& identity_cert, SecurityException& exce
 {
     X509* returnedValue = nullptr;
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     if(identity_cert.size() >= 7 && identity_cert.compare(0, 7, "file://") == 0)
     {
         BIO* in = BIO_new(BIO_s_file());
@@ -281,12 +284,21 @@ X509* load_certificate(const std::string& identity_cert, SecurityException& exce
             exception = _SecurityException_("OpenSSL library cannot allocate file");
     }
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nLoad Certificate Time on String Type %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
 X509* load_certificate(const std::vector<uint8_t>& data)
 {
     X509* returnedValue = nullptr;
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     if(data.size() <= static_cast<size_t>(std::numeric_limits<int>::max()))
     {
@@ -299,6 +311,11 @@ X509* load_certificate(const std::vector<uint8_t>& data)
         }
     }
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nLoad Certificate Time on Raw%d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
@@ -306,6 +323,10 @@ bool verify_certificate(X509_STORE* store, X509* cert, const bool there_are_crls
 {
     assert(store);
     assert(cert);
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     bool returnedValue = false;
 
@@ -323,6 +344,11 @@ bool verify_certificate(X509_STORE* store, X509* cert, const bool there_are_crls
 
     X509_STORE_CTX_cleanup(&ctx);
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nVerify Certificate Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
@@ -330,18 +356,32 @@ int private_key_password_callback(char* buf, int bufsize, int /*verify*/, const 
 {
     assert(password != nullptr);
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     int returnedValue = static_cast<int>(strlen(password));
 
     if(returnedValue > bufsize)
         returnedValue = bufsize;
 
     memcpy(buf, password, returnedValue);
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nPrivate Key Password CB Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
 EVP_PKEY* load_private_key(X509* certificate, const std::string& file, const std::string& password,
         SecurityException& exception)
 {
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     EVP_PKEY* returnedValue = nullptr;
     if(file.size() >= 7 && file.compare(0, 7, "file://") == 0)
     {
@@ -370,11 +410,20 @@ EVP_PKEY* load_private_key(X509* certificate, const std::string& file, const std
             exception = _SecurityException_("OpenSSL library cannot allocate file");
     }
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nLoad Private Key Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
 bool store_certificate_in_buffer(X509* certificate, BUF_MEM** ptr, SecurityException& exception)
 {
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     bool returnedValue = false;
 
     BIO *out = BIO_new(BIO_s_mem());
@@ -401,6 +450,11 @@ bool store_certificate_in_buffer(X509* certificate, BUF_MEM** ptr, SecurityExcep
     else
         exception = _SecurityException_("OpenSSL library cannot allocate mem");
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nStore Certificate in Buffer Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
@@ -409,6 +463,10 @@ bool sign_sha256(EVP_PKEY* private_key, const unsigned char* data, const size_t 
 {
     assert(private_key);
     assert(data);
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     bool returnedValue = false;
     EVP_MD_CTX ctx;
@@ -442,6 +500,11 @@ bool sign_sha256(EVP_PKEY* private_key, const unsigned char* data, const size_t 
 
     EVP_MD_CTX_cleanup(&ctx);
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nSign SHA256 Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
@@ -450,6 +513,10 @@ bool check_sign_sha256(X509* certificate, const unsigned char* data, const size_
 {
     assert(certificate);
     assert(data);
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     bool returnedValue = false;
 
@@ -483,6 +550,11 @@ bool check_sign_sha256(X509* certificate, const unsigned char* data, const size_
 
     EVP_MD_CTX_cleanup(&ctx);
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nCheck Sign SHA256 Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
@@ -490,6 +562,10 @@ bool check_sign_sha256(X509* certificate, const unsigned char* data, const size_
 X509_CRL* load_crl(const std::string& identity_crl, SecurityException& exception)
 {
     X509_CRL* returnedValue = nullptr;
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     if(identity_crl.size() >= 7 && identity_crl.compare(0, 7, "file://") == 0)
     {
@@ -509,6 +585,11 @@ X509_CRL* load_crl(const std::string& identity_crl, SecurityException& exception
         else
             exception = _SecurityException_("OpenSSL library cannot allocate file");
     }
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nLoad CRL Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     return returnedValue;
 }
@@ -589,6 +670,10 @@ int get_dh_type(const std::string& algorithm)
 
 EVP_PKEY* generate_dh_key(int type, SecurityException& exception)
 {
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     EVP_PKEY* keys = nullptr;
     EVP_PKEY* params = EVP_PKEY_new();
     EVP_PKEY_CTX* context = nullptr;
@@ -636,12 +721,21 @@ EVP_PKEY* generate_dh_key(int type, SecurityException& exception)
     else
         exception = _SecurityException_("Cannot allocate EVP parameters");
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nGenerate DH Key Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return keys;
 }
 
 bool store_dh_public_key(EVP_PKEY* dhkey, std::vector<uint8_t>& buffer,
         SecurityException& exception)
 {
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     bool returnedValue = false;
     DH* dh = EVP_PKEY_get1_DH(dhkey);
 
@@ -677,11 +771,20 @@ bool store_dh_public_key(EVP_PKEY* dhkey, std::vector<uint8_t>& buffer,
     else
         exception = _SecurityException_("OpenSSL library doesn't retrieve DH");
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nStore DH Pub Key Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
 EVP_PKEY* generate_dh_peer_key(const std::vector<uint8_t>& buffer, SecurityException& exception)
 {
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     DH* dh = DH_new();
 
     if(dh != nullptr)
@@ -700,6 +803,11 @@ EVP_PKEY* generate_dh_peer_key(const std::vector<uint8_t>& buffer, SecurityExcep
                     {
                         if(EVP_PKEY_assign_DH(key, dh) > 0)
                         {
+#if HAVE_MEASURE_AUTH_TIME
+                            auto end_time = std::chrono::high_resolution_clock::now();
+                            fprintf(stdout, "\nGen DH Peer Key Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
                             return key;
                         }
                         else
@@ -724,11 +832,20 @@ EVP_PKEY* generate_dh_peer_key(const std::vector<uint8_t>& buffer, SecurityExcep
     else
         exception = _SecurityException_("OpenSSL library cannot create dh");
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nGenerate DH Peer Key Non Return Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return nullptr;
 }
 
 bool generate_challenge(std::vector<uint8_t>& vector, SecurityException& exception)
 {
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     bool returnedValue = false;
     BIGNUM bn;
     BN_init(&bn);
@@ -746,6 +863,11 @@ bool generate_challenge(std::vector<uint8_t>& vector, SecurityException& excepti
 
     BN_clear_free(&bn);
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nGenerate Challenge Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return returnedValue;
 }
 
@@ -754,6 +876,10 @@ SharedSecretHandle* generate_sharedsecret(EVP_PKEY* private_key, EVP_PKEY* publi
 {
     assert(private_key);
     assert(public_key);
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     SharedSecretHandle* handle = nullptr;
     EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(private_key, NULL);
@@ -794,11 +920,20 @@ SharedSecretHandle* generate_sharedsecret(EVP_PKEY* private_key, EVP_PKEY* publi
     else
         exception = _SecurityException_("OpenSSL library cannot allocate context");
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nGen Shared Secret Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return handle;
 }
 
 bool generate_identity_token(PKIIdentityHandle& handle)
 {
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     Property property;
     IdentityToken& token = handle->identity_token_;
     token.class_id("DDS:Auth:PKI-DH:1.0");
@@ -830,6 +965,11 @@ bool generate_identity_token(PKIIdentityHandle& handle)
 
     CRYPTO_free(cert_sn_str);
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nGen Id token Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return true;
 }
 
@@ -842,11 +982,21 @@ ValidationResult_t PKIDH::validate_local_identity(IdentityHandle** local_identit
 {
     assert(local_identity_handle);
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     PropertyPolicy auth_properties = PropertyPolicyHelper::get_properties_with_prefix(participant_attr.properties, "dds.sec.auth.builtin.PKI-DH.");
 
     if(PropertyPolicyHelper::length(auth_properties) == 0)
     {
         exception = _SecurityException_("Not found any dds.sec.auth.builtin.PKI-DH property");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -855,6 +1005,12 @@ ValidationResult_t PKIDH::validate_local_identity(IdentityHandle** local_identit
     if(identity_ca == nullptr)
     {
         exception = _SecurityException_("Not found dds.sec.auth.builtin.PKI-DH.identity_ca property");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -863,6 +1019,12 @@ ValidationResult_t PKIDH::validate_local_identity(IdentityHandle** local_identit
     if(identity_cert == nullptr)
     {
         exception = _SecurityException_("Not found dds.sec.auth.builtin.PKI-DH.identity_certificate property");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -873,6 +1035,12 @@ ValidationResult_t PKIDH::validate_local_identity(IdentityHandle** local_identit
     if(private_key == nullptr)
     {
         exception = _SecurityException_("Not found dds.sec.auth.builtin.PKI-DH.private_key property");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -904,6 +1072,12 @@ ValidationResult_t PKIDH::validate_local_identity(IdentityHandle** local_identit
             else
             {
                 delete ih;
+
+#if HAVE_MEASURE_AUTH_TIME
+                auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
                 return ValidationResult_t::VALIDATION_FAILED;
             }
         }
@@ -932,6 +1106,11 @@ ValidationResult_t PKIDH::validate_local_identity(IdentityHandle** local_identit
                                     (*ih)->participant_key_ = adjusted_participant_key;
                                     *local_identity_handle = ih;
 
+#if HAVE_MEASURE_AUTH_TIME
+                                    auto end_time = std::chrono::high_resolution_clock::now();
+                                    fprintf(stdout, "\nPassed Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
                                     return ValidationResult_t::VALIDATION_OK;
                                 }
                             }
@@ -946,6 +1125,11 @@ ValidationResult_t PKIDH::validate_local_identity(IdentityHandle** local_identit
 
     ERR_clear_error();
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return ValidationResult_t::VALIDATION_FAILED;
 }
 
@@ -957,6 +1141,10 @@ ValidationResult_t PKIDH::validate_remote_identity(IdentityHandle** remote_ident
 {
     assert(remote_identity_handle);
     assert(local_identity_handle.nil() == false);
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     ValidationResult_t returnedValue = ValidationResult_t::VALIDATION_FAILED;
 
@@ -970,12 +1158,24 @@ ValidationResult_t PKIDH::validate_remote_identity(IdentityHandle** remote_ident
         if(property == nullptr)
         {
             logWarning(SECURITY_AUTHENTICATION, "Not found property \"dds.ca.sn\" in remote identity token");
+
+#if HAVE_MEASURE_AUTH_TIME
+            auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Validate Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
             return ValidationResult_t::VALIDATION_FAILED;
         }
 
         if(*property != lih->sn)
         {
             logWarning(SECURITY_AUTHENTICATION, "Invalid CA subject name in remote identity token");
+
+#if HAVE_MEASURE_AUTH_TIME
+            auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Validate Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
             return ValidationResult_t::VALIDATION_FAILED;
         }
 
@@ -985,12 +1185,24 @@ ValidationResult_t PKIDH::validate_remote_identity(IdentityHandle** remote_ident
         if(property == nullptr)
         {
             logWarning(SECURITY_AUTHENTICATION, "Not found property \"dds.ca.algo\" in remote identity token");
+
+#if HAVE_MEASURE_AUTH_TIME
+            auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Validate Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
             return ValidationResult_t::VALIDATION_FAILED;
         }
 
         if(*property != lih->algo)
         {
             logWarning(SECURITY_AUTHENTICATION, "Invalid CA signature algorithm in remote identity token");
+
+#if HAVE_MEASURE_AUTH_TIME
+            auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Validate Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
             return ValidationResult_t::VALIDATION_FAILED;
         }
 
@@ -1000,6 +1212,12 @@ ValidationResult_t PKIDH::validate_remote_identity(IdentityHandle** remote_ident
         if(cert_sn == nullptr)
         {
             logWarning(SECURITY_AUTHENTICATION, "Not found property \"dds.cert.sn\" in remote identity token");
+
+#if HAVE_MEASURE_AUTH_TIME
+            auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Validate Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
             return ValidationResult_t::VALIDATION_FAILED;
         }
 
@@ -1009,6 +1227,12 @@ ValidationResult_t PKIDH::validate_remote_identity(IdentityHandle** remote_ident
         if(cert_algo == nullptr)
         {
             logWarning(SECURITY_AUTHENTICATION, "Not found property \"dds.cert.algo\" in remote identity token");
+
+#if HAVE_MEASURE_AUTH_TIME
+            auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Validate Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
             return ValidationResult_t::VALIDATION_FAILED;
         }
 
@@ -1027,6 +1251,11 @@ ValidationResult_t PKIDH::validate_remote_identity(IdentityHandle** remote_ident
             returnedValue = ValidationResult_t::VALIDATION_PENDING_HANDSHAKE_MESSAGE;
     }
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nPassed Validate Local Identity Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return  returnedValue;
 }
 
@@ -1042,12 +1271,22 @@ ValidationResult_t PKIDH::begin_handshake_request(HandshakeHandle** handshake_ha
     assert(initiator_identity_handle.nil() == false);
     assert(replier_identity_handle.nil() == false);
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     const PKIIdentityHandle& lih = PKIIdentityHandle::narrow(initiator_identity_handle);
     PKIIdentityHandle& rih = PKIIdentityHandle::narrow(replier_identity_handle);
 
     if(lih.nil() || rih.nil())
     {
         exception = _SecurityException_("Bad precondition");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Request Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1098,6 +1337,12 @@ ValidationResult_t PKIDH::begin_handshake_request(HandshakeHandle** handshake_ha
     {
         exception = _SecurityException_("OpenSSL library cannot hash sha256");
         delete handshake_handle_aux;
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Request Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
     bproperty.name("hash_c1");
@@ -1126,6 +1371,12 @@ ValidationResult_t PKIDH::begin_handshake_request(HandshakeHandle** handshake_ha
                 (*handshake_handle_aux)->remote_identity_handle_ = &rih;
                 *handshake_handle = handshake_handle_aux;
                 *handshake_message = &(*handshake_handle_aux)->handshake_message_;
+
+#if HAVE_MEASURE_AUTH_TIME
+                auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nSuccess Begin Handshake Request Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
                 return ValidationResult_t::VALIDATION_PENDING_HANDSHAKE_MESSAGE;
             }
         }
@@ -1134,6 +1385,11 @@ ValidationResult_t PKIDH::begin_handshake_request(HandshakeHandle** handshake_ha
     delete handshake_handle_aux;
 
     ERR_clear_error();
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Request Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     return ValidationResult_t::VALIDATION_FAILED;
 }
@@ -1151,12 +1407,22 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     assert(initiator_identity_handle.nil() == false);
     assert(replier_identity_handle.nil() == false);
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     const PKIIdentityHandle& lih = PKIIdentityHandle::narrow(replier_identity_handle);
     PKIIdentityHandle& rih = PKIIdentityHandle::narrow(initiator_identity_handle);
 
     if(lih.nil() || rih.nil())
     {
         exception = _SecurityException_("Bad precondition");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1164,6 +1430,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(handshake_message_in.class_id().compare("DDS:Auth:PKI-DH:1.0+Req") != 0)
     {
         logWarning(SECURITY_AUTHENTICATION, "Bad HandshakeMessageToken (" << handshake_message_in.class_id() << ")");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1173,6 +1445,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(cid == nullptr)
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot find property c.id");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1181,6 +1459,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(rih->cert_ == nullptr)
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot load certificate");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1192,6 +1476,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     {
         CRYPTO_free(cert_sn_str);
         logWarning(SECURITY_AUTHENTICATION, "Certificated subject name invalid");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
     CRYPTO_free(cert_sn_str);
@@ -1199,6 +1489,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(!verify_certificate(lih->store_, rih->cert_, lih->there_are_crls_))
     {
         logWarning(SECURITY_AUTHENTICATION, "Error verifying certificate");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1207,6 +1503,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(pdata == nullptr)
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot find property c.pdata");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1221,12 +1523,24 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(!remote_participant_data.readFromCDRMessage(&cdr_pdata))
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot deserialize ParticipantProxyData in property c.pdata");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
     if((remote_participant_data.m_guid.guidPrefix.value[0] & 0x80) != 0x80)
     {
         logWarning(SECURITY_AUTHENTICATION, "Bad participant_key's first bit in c.pdata");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1236,6 +1550,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(!X509_NAME_digest(cert_sn, EVP_sha256(), md, &length) || length != SHA256_DIGEST_LENGTH)
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot generate SHA256 of subject name");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1252,6 +1572,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(memcmp(md, bytes, 6) != 0)
     {
         logWarning(SECURITY_AUTHENTICATION, "Bad participant_key's 47bits in c.pdata");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1261,6 +1587,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(dsign_algo == nullptr)
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot find property c.dsign_algo");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1270,6 +1602,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
             s_dsign_algo.compare(ECDSA_SHA256) != 0)
     {
         logWarning(SECURITY_AUTHENTICATION, "Not supported signature algorithm (" << s_dsign_algo << ")");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
     rih->sign_alg_ = std::move(s_dsign_algo);
@@ -1280,6 +1618,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(kagree_algo == nullptr)
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot find property c.kagree_algo");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1289,6 +1633,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
             s_kagree_algo.compare(ECDH_prime256v1) != 0)
     {
         logWarning(SECURITY_AUTHENTICATION, "Not supported key agreement algorithm (" << s_kagree_algo << ")");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
     rih->kagree_alg_ = std::move(s_kagree_algo);
@@ -1299,12 +1649,24 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(hash_c1 == nullptr)
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot find property hash_c1");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
     if(hash_c1->size() != SHA256_DIGEST_LENGTH)
     {
         logWarning(SECURITY_AUTHENTICATION, "Wrong size of hash_c1");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1316,12 +1678,24 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(!EVP_Digest(cdrmessage.buffer, cdrmessage.length, md, NULL, EVP_sha256(), NULL))
     {
         exception = _SecurityException_("Cannot generate SHA256 of request");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
     
     if(memcmp(md, hash_c1->data(), SHA256_DIGEST_LENGTH) != 0)
     {
         logWarning(SECURITY_AUTHENTICATION, "Wrong hash_c1");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1331,6 +1705,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(dh1 == nullptr)
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot find property dh1");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1340,6 +1720,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(challenge1 == nullptr)
     {
         logWarning(SECURITY_AUTHENTICATION, "Cannot find property challenge1");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1352,6 +1738,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     if(((*handshake_handle_aux)->peerkeys_ = generate_dh_peer_key(*dh1, exception)) == nullptr)
     {
         exception = _SecurityException_("Cannot store peer key from dh1");
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
@@ -1395,6 +1787,12 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
     {
         exception = _SecurityException_("OpenSSL library cannot hash sha256");
         delete handshake_handle_aux;
+
+#if HAVE_MEASURE_AUTH_TIME
+        auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
         return ValidationResult_t::VALIDATION_FAILED;
     }
     bproperty.name("hash_c2");
@@ -1467,6 +1865,11 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
                     *handshake_handle = handshake_handle_aux;
                     *handshake_message_out = &(*handshake_handle_aux)->handshake_message_;
 
+#if HAVE_MEASURE_AUTH_TIME
+                    auto end_time = std::chrono::high_resolution_clock::now();
+                    fprintf(stdout, "\nSuccess Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
                     return ValidationResult_t::VALIDATION_PENDING_HANDSHAKE_MESSAGE;
                 }
             }
@@ -1477,6 +1880,11 @@ ValidationResult_t PKIDH::begin_handshake_reply(HandshakeHandle** handshake_hand
 
     ERR_clear_error();
 
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nFailed Begin Handshake Reply Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     return ValidationResult_t::VALIDATION_FAILED;
 }
 
@@ -1485,6 +1893,10 @@ ValidationResult_t PKIDH::process_handshake(HandshakeMessageToken** handshake_me
         HandshakeHandle& handshake_handle,
         SecurityException& exception)
 {
+#if HAVE_MEASURE_AUTH_TIME
+    auto start_time = std::chrono::high_resolution_clock::now();
+#endif  // HAVE_MEASURE_AUTH_TIME
+
     ValidationResult_t returnedValue = ValidationResult_t::VALIDATION_FAILED;
 
     PKIHandshakeHandle& handshake = PKIHandshakeHandle::narrow(handshake_handle);
@@ -1506,6 +1918,11 @@ ValidationResult_t PKIDH::process_handshake(HandshakeMessageToken** handshake_me
             logWarning(SECURITY_AUTHENTICATION, "Handshake message not supported (" << handshake->handshake_message_.class_id() << ")");
         }
     }
+
+#if HAVE_MEASURE_AUTH_TIME
+    auto end_time = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "\nProcess Handshake Time %d\n", std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count());
+#endif  // HAVE_MEASURE_AUTH_TIME
 
     return returnedValue;
 }

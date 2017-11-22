@@ -164,6 +164,12 @@ else()
     set(HAVE_MEASURE_TIME 0)
 endif()
 
+if (MEASURE_AUTH_TIME)
+    set(HAVE_MEASURE_AUTH_TIME 1)
+else()
+    set(HAVE_MEASURE_AUTH_TIME 0)
+endif()
+
 if(WIN32)
     list(APPEND ${PROJECT_NAME}_source_files
             ${PROJECT_SOURCE_DIR}/src/cpp/fastrtps.rc
