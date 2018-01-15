@@ -157,6 +157,9 @@ bool PublisherImpl::create_new_change_with_params(ChangeKind_t changeKind, void*
             // Note: high_mark will always be a value that can be casted to uint16_t)
             ch->setFragmentSize((uint16_t)final_high_mark_for_frag);
         }
+	else {
+	    ch->setFragmentSize((uint16_t)ch->serializedPayload.length);
+	}
 
         if(&wparams != &WRITE_PARAM_DEFAULT)
         {
